@@ -67,6 +67,43 @@
     return result;
   }
 
+  const parseCourse = (modules, rawCourse) => {
+    const isMultiModule = rawCourse["module_code"].includes(",");
+
+    const course: Course = {
+      id: rawCourse["course_id"],
+      name: rawCourse["course_name"],
+      module: [],
+      subcategory: isMultiModule ? rawCourse["course_subcategory"].split(",") : rawCourse["course_subcategory"],
+      type: rawCourse["course_type"],
+      credits: isMultiModule ? rawCourse["credits"].split(",").map(c => parseFloat(c)) : parseFloat(rawCourse["credits"]),
+      required: isMultiModule ? rawCourse["required"].split(",").map(r => parseInt(r)) : parseInt(rawCourse["required"]),
+      availability: rawCourse["availability"],
+      recommended_semester: isMultiModule ? rawCourse["recommended_semester"].split(",").map(s => parseInt(s)) : parseInt(rawCourse["recommended_semester"]),
+      prerequisites: [],
+      frequency: rawCourse["frequency"],
+      language: rawCourse["language"],
+      description: rawCourse["description"],
+      url: rawCourse["url"]
+    };
+
+    if (isMultiModule) {
+      const splitCodes = rawCourse["module_code"].split(",");
+      if (splitCodes.length != rawCourse["module_name"].split(",").length) {
+        console.error(`Mismatched length module codes:names of ${course.id}`);
+        return null;
+      }
+
+      for (let i = 0; i < splitCodes.length; i++) {
+        course.module.push(modules.find(m => m.code === splitCodes[i])!);
+      }
+    } else {
+      course.module = [modules.find(m => m.code === rawCourse["module_code"])!];
+    }
+
+    return course;
+  }
+
   const parseToDataStructure = (data) => {
     // Storing unique modules by first iterating once over the list of courses
     let modules: Module[] = [];
@@ -89,43 +126,49 @@
     let courses: Course[] = [];
     for (let i = 0; i < data.length; i++) {
       const rawCourse = data[i];
-      const course: Course = {
-        id: rawCourse["course_id"],
-        name: rawCourse["course_name"],
-        module: [],
-        subcategory: rawCourse["subcategory"],
-        type: rawCourse["type"],
-        credits: parseFloat(rawCourse["credits"]),
-        required: parseInt(rawCourse["required"]),
-        availability: rawCourse["availability"],
-        recommended_semester: rawCourse["recommended_semester"],
-        prerequisites: [],
-        frequency: rawCourse["frequency"],
-        language: rawCourse["language"],
-        description: rawCourse["description"],
-        url: rawCourse["url"]
-      };
+      let rawCourses = [];
+      if (rawCourse["course_id"].includes(",")) {
+        const splitIDs = rawCourse["course_id"].split(",");
+        const splitNames = rawCourse["course_name"].split(",");
+        const splitTypes = rawCourse["course_type"].split(",");
+        const splitCredits = rawCourse["credits"].split(",");
+        const splitRequired = rawCourse["required"].split(",");
+        const splitAvailability = rawCourse["availability"].split(",");
+        const splitRecommendedSemesters = rawCourse["recommended_semester"].split(",");
+        const splitFrequencies = rawCourse["frequency"].split(",");
+        const splitLanguages = rawCourse["language"].split(",");
+        const splitDescriptions = rawCourse["description"].split(",");
+        const splitURLs = rawCourse["url"].split(",");
 
-      if (rawCourse["module_code"].includes(",")) {
-        const moduleCodes = rawCourse["module_code"].split(",");
-        const moduleNames = rawCourse["module_name"].split(",");
+        for (let j = 0; j < splitIDs.length; j++) {
+          let newRawCourse = { ...rawCourse };
+          newRawCourse["course_id"] = splitIDs[j];
+          newRawCourse["course_name"] = splitNames[j];
+          newRawCourse["course_type"] = splitTypes[j];
+          newRawCourse["credits"] = splitCredits[j];
+          newRawCourse["required"] = splitRequired[j];
+          newRawCourse["availability"] = splitAvailability[j];
+          newRawCourse["recommended_semester"] = splitRecommendedSemesters[j];
+          newRawCourse["frequency"] = splitFrequencies[j];
+          newRawCourse["language"] = splitLanguages[j];
+          newRawCourse["description"] = splitDescriptions[j];
+          newRawCourse["url"] = splitURLs[j];
+          console.log("test");
 
-        if (moduleCodes.length != moduleNames.length) {
-          console.error(`Mismatched length module codes:names of ${course.id}`);
-          continue;
-        }
-
-        for (let j = 0; j < moduleCodes.length; j++) {
-          course.module.push(modules.find(m => m.code === moduleCodes[j])!);
+          rawCourses.push(newRawCourse);
         }
       } else {
-        course.module = [modules.find(m => m.code === rawCourse["module_code"])!];
+        rawCourses.push(rawCourse);
       }
-      courses.push(course);
+
+      for (let j = 0; j < rawCourses.length; j++) {
+        const course = parseCourse(modules, rawCourses[j]);
+        if (!course) continue;
+        courses.push(course);
+      }
     }
 
-    console.log(courses)
-
+    // Filling in prerequisites for each course
     for (let i = 0; i < data.length; i++) {
       const rawCourse = data[i];
       const prerequsites = rawCourse["prerequisites"];
@@ -147,6 +190,8 @@
     }
 
     console.log(courses)
+
+    // Creating final curriculum data structure
     let curriculum: Curriculum = {
       credits: -1,
       modules: modules,
