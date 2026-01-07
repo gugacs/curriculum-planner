@@ -1,6 +1,7 @@
 <script lang="ts">
   import Dropzone from "$lib/components/Dropzone.svelte";
   import CourseList from "$lib/components/CourseList.svelte";
+  import Legend from "$lib/components/Legend.svelte";
   import { invoke } from "@tauri-apps/api/core";
 
   let name = $state("");
@@ -16,6 +17,7 @@
 <main class="container">
   <h1>Vitae</h1>
   <Dropzone />
+  <Legend />
   <CourseList />
 </main>
 
