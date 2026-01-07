@@ -1,4 +1,4 @@
-<h1 align="center">🎓 Curriculum Planner 🎓</h1>
+<h1 align="center">🎓 Vitae 🎓</h1>
 
 Simple web app to allow students to plan their academic journey in a simplified and understandable manner.
 
@@ -8,37 +8,33 @@ Simple web app to allow students to plan their academic journey in a simplified 
 
 - Git
 - Bun.js (OR: npm & node)
-- uv (python package manager)
+- Rust & Cargo (rustup)
 
 ### 📦 Installation
 
 ```bash
 # Clone the repository
-git clone git@github.com:gugacs/curriculum-planner.git
-cd curriculum-planner # Ensure you are in the project root
+git clone git@github.com:gugacs/vitae.git
+cd vitae # Ensure you are in the project root
 
-# Prepare the frontend
-cd frontend
+# Prepare the app
+cd app
 bun install # OR: npm install
 ```
 
 ## 🛠️ Tech Stack
 
-- Frontend: SvelteKit & TypeScript
-- Backend: Python (uv) & Fast API
+- SvelteKit & TypeScript
+- Rust
 
 ### ⚙️ Running
 
 **Development Mode**
 
 ```bash
-# Terminal 1: Start Frontend
-cd frontend # Ensure you are in the project root
-bun run dev # Website Available at http://localhost:5173
-
-# Terminal 2: Start Backend
-cd backend # Ensure you are in the project root
-uv run main.py
+# Terminal 1: Start App
+cd app # Ensure you are in the project root
+bun run tauri dev # Website Available at http://localhost:5173
 ```
 
 **Production Mode**
