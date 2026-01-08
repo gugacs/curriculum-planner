@@ -36,7 +36,7 @@
   const parseFile = async (content: string) => {
     // NOTE: https://www.papaparse.com/docs
     const result = Papa.parse(content, {
-      delimiter: "",	// auto-detect
+      delimiter: ",",	// auto-detect
       newline: "",	// auto-detect
       quoteChar: '"',
       escapeChar: '"',
@@ -68,18 +68,18 @@
   }
 
   const parseCourse = (modules, rawCourse) => {
-    const isMultiModule = rawCourse["module_code"].includes(",");
+    const isMultiModule = rawCourse["module_code"].includes(";");
 
     const course: Course = {
       id: rawCourse["course_id"],
       name: rawCourse["course_name"],
       module: [],
-      subcategory: isMultiModule ? rawCourse["course_subcategory"].split(",") : rawCourse["course_subcategory"],
+      subcategory: isMultiModule ? rawCourse["course_subcategory"].split(";") : rawCourse["course_subcategory"],
       type: rawCourse["course_type"],
-      credits: isMultiModule ? rawCourse["credits"].split(",").map(c => parseFloat(c)) : parseFloat(rawCourse["credits"]),
-      required: isMultiModule ? rawCourse["required"].split(",").map(r => parseInt(r)) : parseInt(rawCourse["required"]),
+      credits: isMultiModule ? rawCourse["credits"].split(";").map(c => parseFloat(c)) : parseFloat(rawCourse["credits"]),
+      required: isMultiModule ? rawCourse["required"].split(";").map(r => parseInt(r)) : parseInt(rawCourse["required"]),
       availability: rawCourse["availability"],
-      recommended_semester: isMultiModule ? rawCourse["recommended_semester"].split(",").map(s => parseInt(s)) : parseInt(rawCourse["recommended_semester"]),
+      recommended_semester: isMultiModule ? rawCourse["recommended_semester"].split(";").map(s => parseInt(s)) : parseInt(rawCourse["recommended_semester"]),
       prerequisites: [],
       frequency: rawCourse["frequency"],
       language: rawCourse["language"],
@@ -88,8 +88,8 @@
     };
 
     if (isMultiModule) {
-      const splitCodes = rawCourse["module_code"].split(",");
-      if (splitCodes.length != rawCourse["module_name"].split(",").length) {
+      const splitCodes = rawCourse["module_code"].split(";");
+      if (splitCodes.length != rawCourse["module_name"].split(";").length) {
         console.error(`Mismatched length module codes:names of ${course.id}`);
         return null;
       }
@@ -115,7 +115,7 @@
         credits: -1
       }
 
-      if (module.name.includes(",")) continue;
+      if (module.name.includes(";")) continue;
       if (modules.find(m => m.code === module.code)) continue;
 
       modules.push(module);
@@ -126,18 +126,18 @@
     for (let i = 0; i < data.length; i++) {
       const rawCourse = data[i];
       let rawCourses = [];
-      if (rawCourse["course_id"].includes(",")) {
-        const splitIDs = rawCourse["course_id"].split(",");
-        const splitNames = rawCourse["course_name"].split(",");
-        const splitTypes = rawCourse["course_type"].split(",");
-        const splitCredits = rawCourse["credits"].split(",");
-        const splitRequired = rawCourse["required"].split(",");
-        const splitAvailability = rawCourse["availability"].split(",");
-        const splitRecommendedSemesters = rawCourse["recommended_semester"].split(",");
-        const splitFrequencies = rawCourse["frequency"].split(",");
-        const splitLanguages = rawCourse["language"].split(",");
-        const splitDescriptions = rawCourse["description"].split(",");
-        const splitURLs = rawCourse["url"].split(",");
+      if (rawCourse["course_id"].includes(";")) {
+        const splitIDs = rawCourse["course_id"].split(";");
+        const splitNames = rawCourse["course_name"].split(";");
+        const splitTypes = rawCourse["course_type"].split(";");
+        const splitCredits = rawCourse["credits"].split(";");
+        const splitRequired = rawCourse["required"].split(";");
+        const splitAvailability = rawCourse["availability"].split(";");
+        const splitRecommendedSemesters = rawCourse["recommended_semester"].split(";");
+        const splitFrequencies = rawCourse["frequency"].split(";");
+        const splitLanguages = rawCourse["language"].split(";");
+        const splitDescriptions = rawCourse["description"].split(";");
+        const splitURLs = rawCourse["url"].split(";");
 
         for (let j = 0; j < splitIDs.length; j++) {
           let newRawCourse = { ...rawCourse };
@@ -171,8 +171,8 @@
       const rawCourse = data[i];
       const prerequsites = rawCourse["prerequisites"];
       if (!prerequsites) continue;
-      if (prerequsites.includes(",")) {
-        const prerequisiteIDs = prerequsites.split(",");
+      if (prerequsites.includes(";")) {
+        const prerequisiteIDs = prerequsites.split(";");
         for (let j = 0; j < prerequisiteIDs.length; j++) {
           const prereqCourse = courses.find(c => c.id === prerequisiteIDs[j]);
           if (!prereqCourse) continue;
