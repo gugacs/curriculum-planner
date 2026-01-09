@@ -1,34 +1,35 @@
 <script lang="ts">
-  import { SvelteFlow, MiniMap, Controls, Background } from '@xyflow/svelte';
-  import '@xyflow/svelte/dist/style.css';
+    import { SvelteFlow, MiniMap, Controls, Background } from '@xyflow/svelte';
+    import '@xyflow/svelte/dist/style.css';
+    import { curriculumStore } from "$lib/states/curriculum.svelte";
 
-  let nodes = $state.raw([
-      {
-          id: '1',
-          position: { x: 10, y: 10 },
-          data: { label: 'Course 1' },
-      },
-      {
-          id: '2',
-          position: { x: 100, y: 100 },
-          data: { label: 'Course 2' },
-      },
-      {
-          id: '3',
-          position: { x: 200, y: 200 },
-          data: { label: 'Course 3' },
-      },
-      {
-          id: '4',
-          position: { x: 400, y: 50 },
-          data: { label: 'Course 4' },
-      },
-  ]);
+    //$curriculumStore.courses.forEach(course => {console.log(course.id)})
 
-  let edges = $state.raw([{ id: 'e1-2', source: '1', target: '2' }, { id: 'e2-2', source: '2' , target: '3' }]);
+    let nodes = $state.raw([]);
+    let edges = $state.raw([]);
+
+    $effect(() => {
+        const nodesPerColumn = 10;
+        const verticalSpacing = 100;
+        const horizontalSpacing = 200;
+
+        nodes = $curriculumStore.courses.map((course, index) => {
+            const columnIndex = Math.floor(index / nodesPerColumn);
+            const rowIndex = index % nodesPerColumn;
+
+            return {
+                id: `${course.id}-${index}`,
+                position: {
+                    x: columnIndex * horizontalSpacing,
+                    y: rowIndex * verticalSpacing
+                },
+                data: { label: course.name }
+            };
+        });
+    });
 </script>
 
-<div style:height="30rem">
+<div style:height="50rem">
   <SvelteFlow bind:nodes bind:edges>
     <MiniMap />
     <Controls />
