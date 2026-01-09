@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { SvelteFlow, MiniMap, Controls, Background, Handle } from '@xyflow/svelte';
+    import { SvelteFlow, MiniMap, Controls, Background } from '@xyflow/svelte';
     import '@xyflow/svelte/dist/style.css';
     import { curriculumStore } from "$lib/states/curriculum.svelte";
     import CustomNode from "$lib/components/CustomNode.svelte";
@@ -10,24 +10,41 @@
     let edges = $state.raw([]);
 
     $effect(() => {
-        const nodesPerColumn = 10;
         const verticalSpacing = 200;
         const horizontalSpacing = 350;
 
-        nodes = $curriculumStore.courses.map((course, index) => {
-            const columnIndex = Math.floor(index / nodesPerColumn);
-            const rowIndex = index % nodesPerColumn;
+        // group courses by semester
+        const coursesBySemester = $curriculumStore.courses.reduce((acc, course) => {
+            let semester = parseInt(course.recommended_semester); // parseInt to handle strings like "2;2" and convert to a number
 
-            return {
-                id: `${course.id}-${index}`,
-                type: 'custom',
-                position: {
-                    x: columnIndex * horizontalSpacing,
-                    y: rowIndex * verticalSpacing
-                },
-                data: { label: course.name, lv: course },
-            };
-        });
+            if (isNaN(semester)) {
+                semester = 0; // default to semester 0 if parsing fails
+            }
+            if (!acc[semester]) {
+                acc[semester] = [];
+            }
+            acc[semester].push(course);
+            return acc;
+        }, {});
+
+        console.log(coursesBySemester);
+
+        // create nodes from the grouped structure
+        nodes = Object.keys(coursesBySemester)
+            .sort((a, b) => Number(a) - Number(b)) // Ensure semesters are in numerical order
+            .flatMap((semester, columnIndex) => {
+                const coursesInSemester = coursesBySemester[semester];
+
+                return coursesInSemester.map((course, rowIndex) => ({
+                    id: `${course.id}-${semester}-${rowIndex}`, // Unique ID
+                    type: 'custom',
+                    position: {
+                        x: columnIndex * horizontalSpacing,
+                        y: rowIndex * verticalSpacing
+                    },
+                    data: { label: course.name, lv: course },
+                }));
+            });
     });
 </script>
 
