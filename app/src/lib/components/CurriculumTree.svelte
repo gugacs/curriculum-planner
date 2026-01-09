@@ -1,17 +1,18 @@
 <script lang="ts">
-    import { SvelteFlow, MiniMap, Controls, Background } from '@xyflow/svelte';
+    import { SvelteFlow, MiniMap, Controls, Background, Handle } from '@xyflow/svelte';
     import '@xyflow/svelte/dist/style.css';
     import { curriculumStore } from "$lib/states/curriculum.svelte";
+    import CustomNode from "$lib/components/CustomNode.svelte";
 
-    //$curriculumStore.courses.forEach(course => {console.log(course.id)})
+    const nodeTypes = { custom: CustomNode };
 
     let nodes = $state.raw([]);
     let edges = $state.raw([]);
 
     $effect(() => {
         const nodesPerColumn = 10;
-        const verticalSpacing = 100;
-        const horizontalSpacing = 200;
+        const verticalSpacing = 200;
+        const horizontalSpacing = 350;
 
         nodes = $curriculumStore.courses.map((course, index) => {
             const columnIndex = Math.floor(index / nodesPerColumn);
@@ -19,18 +20,19 @@
 
             return {
                 id: `${course.id}-${index}`,
+                type: 'custom',
                 position: {
                     x: columnIndex * horizontalSpacing,
                     y: rowIndex * verticalSpacing
                 },
-                data: { label: course.name }
+                data: { label: course.name, lv: course },
             };
         });
     });
 </script>
 
 <div style:height="50rem">
-  <SvelteFlow bind:nodes bind:edges>
+  <SvelteFlow bind:nodes bind:edges {nodeTypes} fitView>
     <MiniMap />
     <Controls />
     <Background />
