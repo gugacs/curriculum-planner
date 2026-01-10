@@ -3,53 +3,113 @@
     import '@xyflow/svelte/dist/style.css';
     import { curriculumStore } from "$lib/states/curriculum.svelte";
     import CustomNode from "$lib/components/CustomNode.svelte";
+    import CustomEdge from "$lib/components/CustomEdge.svelte";
 
     const nodeTypes = { custom: CustomNode };
+    const edgeTypes = { custom: CustomEdge };
 
     let nodes = $state.raw([]);
     let edges = $state.raw([]);
 
     $effect(() => {
-        const verticalSpacing = 200;
-        const horizontalSpacing = 350;
+      const showElectiveModules = false;
+      const verticalSpacing = 300;
+      const horizontalSpacing = 500;
 
-        // group courses by semester
-        const coursesBySemester = $curriculumStore.courses.reduce((acc, course) => {
-            let semester = parseInt(course.recommended_semester); // parseInt to handle strings like "2;2" and convert to a number
+      // filter if the elective modules should be shown or not
+      const filteredCourses = showElectiveModules
+        ? $curriculumStore.courses
+        : $curriculumStore.courses.filter(course => {
+          const semester = parseInt(course.recommended_semester);
+          return isNaN(semester) || semester !== 0;
+        });
 
-            if (isNaN(semester)) {
-                semester = 0; // default to semester 0 if parsing fails
+      // group courses by semester
+      const coursesBySemester = filteredCourses.reduce((acc, course) => {
+        let semester = parseInt(course.recommended_semester); // parseInt to handle strings like "2;2" and convert to a number
+
+        if (isNaN(semester)) {
+          semester = 0; // default to semester 0 if parsing fails
+        }
+        if (!acc[semester]) {
+          acc[semester] = [];
+        }
+        acc[semester].push(course);
+        return acc;
+      }, {});
+
+      console.log(coursesBySemester);
+
+      const courseIdToNodeMap = new Map<string, { nodeId: string; semester: number }[]>();
+
+      // create nodes from the grouped structure and adapt the map in the same loop
+      const newNodes = Object.keys(coursesBySemester)
+        .sort((a, b) => Number(a) - Number(b))
+        .flatMap((semester, columnIndex) => {
+          const coursesInSemester = coursesBySemester[semester];
+
+          return coursesInSemester.map((course, rowIndex) => {
+            const nodeId = `${course.id}-${semester}-${rowIndex}`; // Unique ID
+
+            if (!courseIdToNodeMap.has(course.id)) {
+              courseIdToNodeMap.set(course.id, []);
             }
-            if (!acc[semester]) {
-                acc[semester] = [];
+            courseIdToNodeMap.get(course.id)?.push({ nodeId, semester });
+
+            return {
+              id: nodeId,
+              type: 'custom',
+              position: {
+                x: columnIndex * horizontalSpacing,
+                y: rowIndex * verticalSpacing
+              },
+              data: { label: course.name, lv: course },
+            };
+          });
+        });
+
+      // iterate through all courses again to create edges
+      const newEdges = [];
+      for (const targetNode of newNodes) {
+        const targetCourse = targetNode.data.lv;
+
+        // Create a clean list of prerequisite IDs, regardless of the source data type
+        let prerequisiteIds = [];
+        if (targetCourse.prerequisites) {
+          if (typeof targetCourse.prerequisites === 'string' && targetCourse.prerequisites.length > 0) {
+            prerequisiteIds = targetCourse.prerequisites.split(';').map(id => id.trim());
+          } else if (Array.isArray(targetCourse.prerequisites)) {
+            prerequisiteIds = targetCourse.prerequisites.map(p => p.id);
+          }
+        }
+
+        // loop over the clean array of IDs
+        if (prerequisiteIds.length > 0) {
+          for (const prereqId of prerequisiteIds) {
+            const possibleSources = courseIdToNodeMap.get(prereqId);
+            if (!possibleSources) continue; // skip if prerequisite node doesn't exist
+
+            const bestSource = possibleSources
+              .sort((a, b) => b.semester - a.semester)[0];
+
+            if (bestSource && bestSource.nodeId !== targetNode.id) {
+              newEdges.push({
+                id: `e-${bestSource.nodeId}-${targetNode.id}`,
+                source: bestSource.nodeId,
+                target: targetNode.id,
+              });
             }
-            acc[semester].push(course);
-            return acc;
-        }, {});
+          }
+        }
+      }
 
-        console.log(coursesBySemester);
-
-        // create nodes from the grouped structure
-        nodes = Object.keys(coursesBySemester)
-            .sort((a, b) => Number(a) - Number(b)) // Ensure semesters are in numerical order
-            .flatMap((semester, columnIndex) => {
-                const coursesInSemester = coursesBySemester[semester];
-
-                return coursesInSemester.map((course, rowIndex) => ({
-                    id: `${course.id}-${semester}-${rowIndex}`, // Unique ID
-                    type: 'custom',
-                    position: {
-                        x: columnIndex * horizontalSpacing,
-                        y: rowIndex * verticalSpacing
-                    },
-                    data: { label: course.name, lv: course },
-                }));
-            });
+      nodes = newNodes;
+      edges = newEdges;
     });
 </script>
 
-<div style:height="50rem">
-  <SvelteFlow bind:nodes bind:edges {nodeTypes} fitView>
+<div style:height="80rem">
+  <SvelteFlow bind:nodes bind:edges {nodeTypes} >
     <MiniMap />
     <Controls />
     <Background />
