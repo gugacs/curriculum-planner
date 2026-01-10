@@ -68,129 +68,120 @@
   }
 
   const parseCourse = (modules, rawCourse) => {
-    const isMultiModule = rawCourse["module_code"].includes(";");
-
-    let prerequisites = [];
     const prereqString = rawCourse["prerequisites"];
-    if (prereqString && prereqString.length > 0) {
-        prerequisites = prereqString.split(';').map(id => id.trim());
-    }
+    const prerequisiteIds = (prereqString && prereqString.length > 0)
+      ? prereqString.split(';').map(id => id.trim())
+      : [];
 
-    const course: Course = {
+    const course: any = {
       id: rawCourse["course_id"],
       name: rawCourse["course_name"],
       module: [],
-      subcategory: isMultiModule ? rawCourse["course_subcategory"].split(";") : rawCourse["course_subcategory"],
+      subcategory: rawCourse["course_subcategory"],
       type: rawCourse["course_type"],
-      credits: isMultiModule ? rawCourse["credits"].split(";").map(c => parseFloat(c)) : parseFloat(rawCourse["credits"]),
-      required: isMultiModule ? rawCourse["required"].split(";").map(r => parseInt(r)) : parseInt(rawCourse["required"]),
+      credits: parseFloat(rawCourse["credits"]) || 0,
+      required: parseInt(rawCourse["required"], 10),
       availability: rawCourse["availability"],
-      recommended_semester: isMultiModule ? rawCourse["recommended_semester"].split(";").map(s => parseInt(s)) : parseInt(rawCourse["recommended_semester"]),
-      prerequisites: prerequisites,
+      recommended_semester: parseInt(rawCourse["recommended_semester"], 10) || 0,
+      prerequisites: prerequisiteIds, // Temporarily store IDs
       frequency: rawCourse["frequency"],
       language: rawCourse["language"],
       description: rawCourse["description"],
       url: rawCourse["url"]
     };
 
-    if (isMultiModule) {
+    if (rawCourse["module_code"].includes(";")) {
       const splitCodes = rawCourse["module_code"].split(";");
-      if (splitCodes.length != rawCourse["module_name"].split(";").length) {
-        console.error(`Mismatched length module codes:names of ${course.id}`);
-        return null;
-      }
-
-      for (let i = 0; i < splitCodes.length; i++) {
-        course.module.push(modules.find(m => m.code === splitCodes[i])!);
+      for (const code of splitCodes) {
+        const foundModule = modules.find(m => m.code === code.trim());
+        if (foundModule) course.module.push(foundModule);
       }
     } else {
-      course.module = [modules.find(m => m.code === rawCourse["module_code"])!];
+      const foundModule = modules.find(m => m.code === rawCourse["module_code"]);
+      if (foundModule)
+        course.module = [foundModule];
     }
 
-    return course;
+    return course as Course;
   }
 
   const parseToDataStructure = (data) => {
     // Storing unique modules by first iterating once over the list of courses
     let modules: Module[] = [];
-
-    for (let i = 0; i < data.length; i++) {
-      const module: Module = {
-        code: data[i]["module_code"],
-        name: data[i]["module_name"],
+    for (const row of data) {
+      if (row["module_name"].includes(";")) continue;
+      if (modules.find(m => m.code === row["module_code"])) continue;
+      modules.push({
+        code: row["module_code"],
+        name: row["module_name"],
         credits: -1
-      }
-
-      if (module.name.includes(";")) continue;
-      if (modules.find(m => m.code === module.code)) continue;
-
-      modules.push(module);
+      });
     }
 
     // Filling in all the possible data for courses
-    let courses: Course[] = [];
-    for (let i = 0; i < data.length; i++) {
-      const rawCourse = data[i];
-      let rawCourses = [];
-      if (rawCourse["course_id"].includes(";")) {
-        const splitIDs = rawCourse["course_id"].split(";");
-        const splitNames = rawCourse["course_name"].split(";");
-        const splitTypes = rawCourse["course_type"].split(";");
-        const splitCredits = rawCourse["credits"].split(";");
-        const splitRequired = rawCourse["required"].split(";");
-        const splitAvailability = rawCourse["availability"].split(";");
-        const splitRecommendedSemesters = rawCourse["recommended_semester"].split(";");
-        const splitFrequencies = rawCourse["frequency"].split(";");
-        const splitLanguages = rawCourse["language"].split(";");
-        const splitDescriptions = rawCourse["description"].split(";");
-        const splitURLs = rawCourse["url"].split(";");
+      let courses: Course[] = [];
+      for (const rawCourse of data) {
+        let rawCoursesToProcess = [];
+        if (rawCourse["course_id"] && rawCourse["course_id"].includes(";")) {
+          const splitIDs = rawCourse["course_id"].split(";");
+          const splitNames = rawCourse["course_name"].split(";");
+          const splitTypes = rawCourse["course_type"].split(";");
+          const splitCredits = rawCourse["credits"].split(";");
+          const splitRequired = rawCourse["required"] ? rawCourse["required"].split(";") : [];
+          const splitAvailability = rawCourse["availability"].split(";");
+          const splitRecommendedSemesters = rawCourse["recommended_semester"].split(";");
+          const splitFrequencies = rawCourse["frequency"].split(";");
+          const splitLanguages = rawCourse["language"].split(";");
+          const splitDescriptions = rawCourse["description"].split(";");
+          const splitURLs = rawCourse["url"].split(";");
 
-        for (let j = 0; j < splitIDs.length; j++) {
-          let newRawCourse = { ...rawCourse };
-          newRawCourse["course_id"] = splitIDs[j];
-          newRawCourse["course_name"] = splitNames[j];
-          newRawCourse["course_type"] = splitTypes[j];
-          newRawCourse["credits"] = splitCredits[j];
-          newRawCourse["required"] = splitRequired[j];
-          newRawCourse["availability"] = splitAvailability[j];
-          newRawCourse["recommended_semester"] = splitRecommendedSemesters[j];
-          newRawCourse["frequency"] = splitFrequencies[j];
-          newRawCourse["language"] = splitLanguages[j];
-          newRawCourse["description"] = splitDescriptions[j];
-          newRawCourse["url"] = splitURLs[j];
-
-          rawCourses.push(newRawCourse);
+          for (let j = 0; j < splitIDs.length; j++) {
+            let newRawCourse = { ...rawCourse };
+            newRawCourse["course_id"] = splitIDs[j].trim();
+            newRawCourse["course_name"] = splitNames[j]?.trim();
+            newRawCourse["course_type"] = splitTypes[j]?.trim();
+            newRawCourse["credits"] = splitCredits[j]?.trim();
+            newRawCourse["required"] = splitRequired[j]?.trim();
+            newRawCourse["availability"] = splitAvailability[j]?.trim();
+            newRawCourse["recommended_semester"] = splitRecommendedSemesters[j]?.trim();
+            newRawCourse["frequency"] = splitFrequencies[j]?.trim();
+            newRawCourse["language"] = splitLanguages[j]?.trim();
+            newRawCourse["description"] = splitDescriptions[j]?.trim();
+            newRawCourse["url"] = splitURLs[j]?.trim();
+            rawCoursesToProcess.push(newRawCourse);
+          }
+        } else {
+          rawCoursesToProcess.push(rawCourse);
         }
-      } else {
-        rawCourses.push(rawCourse);
-      }
 
-      for (let j = 0; j < rawCourses.length; j++) {
-        const course = parseCourse(modules, rawCourses[j]);
-        if (!course) continue;
-        courses.push(course);
+        for (const courseData of rawCoursesToProcess) {
+          if (!courseData["course_id"]) continue; // Skip rows without an ID
+          const course = parseCourse(modules, courseData);
+          if (course) {
+            courses.push(course);
+          }
+        }
       }
-    }
 
     // Filling in prerequisites for each course
-    for (let i = 0; i < data.length; i++) {
-      const rawCourse = data[i];
-      const prerequsites = rawCourse["prerequisites"];
-      if (!prerequsites) continue;
-      if (prerequsites.includes(";")) {
-        const prerequisiteIDs = prerequsites.split(";");
-        for (let j = 0; j < prerequisiteIDs.length; j++) {
-          const prereqCourse = courses.find(c => c.id === prerequisiteIDs[j]);
-          if (!prereqCourse) continue;
+    const coursesMap = new Map(courses.map(course => [course.id, course]));
 
-          courses[i].prerequisites.push(prereqCourse);
+    for (const course of courses) {
+      const prerequisiteIds = course.prerequisites as unknown as string[];
+      const linkedPrerequisites: Course[] = [];
+
+      if (prerequisiteIds && prerequisiteIds.length > 0) {
+        for (const prereqId of prerequisiteIds) {
+          const prereqCourse = coursesMap.get(prereqId);
+          if (prereqCourse) {
+            linkedPrerequisites.push(prereqCourse);
+          } else {
+            console.warn(`Prerequisite with ID "${prereqId}" not found for course "${course.name}"`);
+          }
         }
-      } else {
-        const prereqCourse = courses.find(c => c.id === prerequsites);
-        if (!prereqCourse) continue;
-
-        courses[i].prerequisites.push(prereqCourse);
       }
+      // Replace the array of IDs with the array of actual Course objects
+      course.prerequisites = linkedPrerequisites;
     }
 
     // Creating final curriculum data structure
